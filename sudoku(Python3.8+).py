@@ -123,14 +123,29 @@ def display(values):
 def solve(grid: object) -> object: return search(parse_grid(grid))
 
 
+'''
 def search(values):
-    """Using depth-first search and propagation, try all possible values."""
+    "Using depth-first search and propagation, try all possible values."
     if values is False:
-        return False  # Failed earlier
+        return False ## Failed earlier
     if all(len(values[s]) == 1 for s in squares):
-        return values  # Solved!
-    # Chose the unfilled square s with the fewest possibilities
-    n, s = min((len(values[s]), s) for s in squares if len(values[s]) > 1)
+        return values ## Solved!
+    ## Chose the unfilled square s with the fewest possibilities
+    n,s = min((len(values[s]), s) for s in squares if len(values[s]) > 1)
+    return some(search(assign(values.copy(), s, d))
+                for d in values[s])
+'''
+def search(values):
+    "Using depth-first search and propagation, try all possible values."
+    if values is False:
+        return False ## Failed earlier
+    if all(len(values[s]) == 1 for s in squares):
+        return values ## Solved!
+    ## Chose an unfilled square s randomly
+    unsolved_squares = [s for s in squares if len(values[s]) > 1]
+    s = random.choice(unsolved_squares)
+    ## Choose a digit d for the square s randomly
+    d = random.choice(values[s])
     return some(search(assign(values.copy(), s, d))
                 for d in values[s])
 
