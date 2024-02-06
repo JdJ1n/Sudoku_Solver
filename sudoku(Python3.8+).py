@@ -130,9 +130,33 @@ def search(values):
     if all(len(values[s]) == 1 for s in squares):
         return values  # Solved!
     # Chose the unfilled square s with the fewest possibilities
-    n, s = min((len(values[s]), s) for s in squares if len(values[s]) > 1)
+    _, s = min((len(values[s]), s) for s in squares if len(values[s]) > 1)
+    # values = find_hidden_singles(values, s)
     return some(search(assign(values.copy(), s, d))
                 for d in values[s])
+
+
+def randomsearch(values):
+    """Using depth-first search and propagation, try all possible values."""
+    if values is False:
+        return False  # Failed earlier
+    if all(len(values[s]) == 1 for s in squares):
+        return values  # Solved!
+    # Chose the unfilled square s randomly
+    s = random.choice([s for s in squares if len(values[s]) > 1])
+    values = find_hidden_singles(values, s)
+    return some(randomsearch(assign(values.copy(), s, d))
+                for d in values[s])
+
+
+def find_hidden_singles(values, s):
+    """Find hidden singles in the units of s."""
+    for d in values[s]:
+        for unit in units[s]:
+            dplaces = [s for s in unit if d in values[s]]
+            if len(dplaces) == 1:
+                assign(values, dplaces[0], d)
+    return values
 
 
 # Utilities #
@@ -172,6 +196,7 @@ def solve_all(grids, name='', showif=0.0):
         if showif is not None and t > showif:
             display(grid_values(grid))
             if values:
+                # noinspection PyTypeChecker
                 display(values)
             print('(%.3f seconds)\n' % t)
         return t, solved(values)
@@ -212,7 +237,7 @@ hard1 = '.....6....59.....82....8....45........3........6..3.54...325..6........
 if __name__ == '__main__':
     test()
     # noinspection PyTypeChecker
-    solve_all(from_file("100sudoku.txt"), "95sudoku", None)
+    solve_all(from_file("1000sudoku.txt"), "95sudoku", None)
     # solve_all(from_file("easy50.txt", '========'), "easy", None)
     # solve_all(from_file("easy50.txt", '========'), "easy", None)
     # solve_all(from_file("top95.txt"), "hard", None)
