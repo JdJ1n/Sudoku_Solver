@@ -188,8 +188,6 @@ def hill_climbing(grid):
 
     return values
 
-
-
 def generate_neighbors(values):
     neighbors = []
     for square in squares:
