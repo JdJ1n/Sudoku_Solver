@@ -158,7 +158,6 @@ def find_hidden_singles(values, s):
                 assign(values, dplaces[0], d)
     return values
 
-
 def hill_climbing(grid):
     # Parse the grid and initialize values
     values = parse_grid(grid)
