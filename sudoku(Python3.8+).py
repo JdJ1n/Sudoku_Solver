@@ -120,7 +120,7 @@ def display(values):
 
 # Search #
 
-def solve(grid: object) -> object: return search(parse_grid(grid))
+def solve(grid: object) -> object: return hill_climbing(grid)
 
 
 def search(values):
@@ -158,6 +158,67 @@ def find_hidden_singles(values, s):
                 assign(values, dplaces[0], d)
     return values
 
+
+def hill_climbing(grid):
+    # Parse the grid and initialize values
+    values = parse_grid(grid)
+    current_conflicts = count_conflicts(values)
+
+    while True:
+        # Generate neighbors
+        neighbors = generate_neighbors(values)
+
+        # Evaluate neighbors
+        best_neighbor = None
+        best_conflicts = current_conflicts
+
+        for neighbor in neighbors:
+            neighbor_conflicts = count_conflicts(neighbor)
+            if neighbor_conflicts < best_conflicts:
+                best_neighbor = neighbor
+                best_conflicts = neighbor_conflicts
+
+        # If no better neighbor found, stop
+        if best_neighbor is None or best_conflicts >= current_conflicts:
+            break
+
+        # Move to the best neighbor
+        values = best_neighbor
+        current_conflicts = best_conflicts
+
+    return values
+
+
+
+def generate_neighbors(values):
+    neighbors = []
+    for square in squares:
+        # Randomly select two squares in the same 3x3 box
+        neighbors_squares = [s for s in peers[square] if
+                             len(values[s]) > 1 and len(peers[s].intersection(peers[square])) > 5]
+        if len(neighbors_squares) < 2:
+            continue
+        square1, square2 = random.sample(neighbors_squares, 2)
+
+        # Swap values
+        new_values = values.copy()
+        new_values[square1], new_values[square2] = new_values[square2], new_values[square1]
+        neighbors.append(new_values)
+
+    return neighbors
+
+
+
+def count_conflicts(values):
+    conflicts = 0
+    for unit in unitlist:
+        seen = {}
+        for square in unit:
+            for digit in values[square]:
+                if digit in seen:
+                    conflicts += 1
+                seen[digit] = True
+    return conflicts
 
 # Utilities #
 
