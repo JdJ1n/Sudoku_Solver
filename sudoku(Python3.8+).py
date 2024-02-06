@@ -23,10 +23,10 @@ digits = '123456789'
 rows = 'ABCDEFGHI'
 cols = digits
 squares = cross(rows, cols)
-unitlist = ([cross(rows, c) for c in cols] +
-            [cross(r, cols) for r in rows] +
-            [cross(rs, cs) for rs in ('ABC', 'DEF', 'GHI') for cs in ('123', '456', '789')])
-units = dict((s, [u for u in unitlist if s in u])
+unit_list = ([cross(rows, c) for c in cols] +
+             [cross(r, cols) for r in rows] +
+             [cross(rs, cs) for rs in ('ABC', 'DEF', 'GHI') for cs in ('123', '456', '789')])
+units = dict((s, [u for u in unit_list if s in u])
              for s in squares)
 peers = dict((s, set(sum(units[s], [])) - {s})
              for s in squares)
@@ -37,7 +37,7 @@ peers = dict((s, set(sum(units[s], [])) - {s})
 def test():
     """A set of tests that must pass."""
     assert len(squares) == 81
-    assert len(unitlist) == 27
+    assert len(unit_list) == 27
     assert all(len(units[s]) == 3 for s in squares)
     assert all(len(peers[s]) == 20 for s in squares)
     assert units['C2'] == [['A2', 'B2', 'C2', 'D2', 'E2', 'F2', 'G2', 'H2', 'I2'],
@@ -95,12 +95,12 @@ def eliminate(values, s, d):
             return False
     # (2) If a unit u is reduced to only one place for a value d, then put it there.
     for u in units[s]:
-        dplaces = [s for s in u if d in values[s]]
-        if len(dplaces) == 0:
+        d_places = [s for s in u if d in values[s]]
+        if len(d_places) == 0:
             return False  # Contradiction: no place for this value
-        elif len(dplaces) == 1:
+        elif len(d_places) == 1:
             # d can only be in one place in unit; assign it there
-            if not assign(values, dplaces[0], d):
+            if not assign(values, d_places[0], d):
                 return False
     return values
 
@@ -120,7 +120,7 @@ def display(values):
 
 # Search #
 
-def solve(grid: object) -> object: return hill_climbing(grid)
+def solve(grid: object) -> object: return randomsearch(parse_grid(grid))
 
 
 def search(values):
@@ -153,9 +153,9 @@ def find_hidden_singles(values, s):
     """Find hidden singles in the units of s."""
     for d in values[s]:
         for unit in units[s]:
-            dplaces = [s for s in unit if d in values[s]]
-            if len(dplaces) == 1:
-                assign(values, dplaces[0], d)
+            d_places = [s for s in unit if d in values[s]]
+            if len(d_places) == 1:
+                assign(values, d_places[0], d)
     return values
 
 def hill_climbing(grid):
@@ -187,6 +187,7 @@ def hill_climbing(grid):
 
     return values
 
+
 def generate_neighbors(values):
     neighbors = []
     for square in squares:
@@ -205,10 +206,9 @@ def generate_neighbors(values):
     return neighbors
 
 
-
 def count_conflicts(values):
     conflicts = 0
-    for unit in unitlist:
+    for unit in unit_list:
         seen = {}
         for square in unit:
             for digit in values[square]:
@@ -216,6 +216,7 @@ def count_conflicts(values):
                     conflicts += 1
                 seen[digit] = True
     return conflicts
+
 
 # Utilities #
 
@@ -241,17 +242,17 @@ def shuffled(seq):
 
 # System test #
 
-def solve_all(grids, name='', showif=0.0):
+def solve_all(grids, name='', show_if=0.0):
     """Attempt to solve a sequence of grids. Report results.
-    When showif is a number of seconds, display puzzles that take longer.
-    When showif is None, don't display any puzzles."""
+    When show_if is a number of seconds, display puzzles that take longer.
+    When show_if is None, don't display any puzzles."""
 
     def time_solve(grid):
         start = time.perf_counter()  # change to perf_counter() because time.clock() is moved in Python 3.8
         values = solve(grid)
         t = time.perf_counter() - start  # change to perf_counter() because time.clock() is moved in Python 3.8
         # Display puzzles that take long enough
-        if showif is not None and t > showif:
+        if show_if is not None and t > show_if:
             display(grid_values(grid))
             if values:
                 # noinspection PyTypeChecker
@@ -269,9 +270,9 @@ def solve_all(grids, name='', showif=0.0):
 def solved(values):
     """A puzzle is solved if each unit is a permutation of the digits 1 to 9."""
 
-    def unitsolved(unit): return set(values[s] for s in unit) == set(digits)
+    def unit_solved(unit): return set(values[s] for s in unit) == set(digits)
 
-    return values is not False and all(unitsolved(unit) for unit in unitlist)
+    return values is not False and all(unit_solved(unit) for unit in unit_list)
 
 
 def random_puzzle(n=17):
