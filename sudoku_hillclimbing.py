@@ -26,6 +26,7 @@ squares = cross(rows, cols)
 unit_list = ([cross(rows, c) for c in cols] +
              [cross(r, cols) for r in rows] +
              [cross(rs, cs) for rs in ('ABC', 'DEF', 'GHI') for cs in ('123', '456', '789')])
+cube = [cross(rs, cs) for rs in ('ABC', 'DEF', 'GHI') for cs in ('123', '456', '789')]
 units = dict((s, [u for u in unit_list if s in u])
              for s in squares)
 peers = dict((s, set(sum(units[s], [])) - {s})
@@ -70,39 +71,44 @@ def grid_values(grid):
 
 # Constraint Propagation #
 
-def assign(values, s, d):
-    """Eliminate all the other values (except d) from values[s] and propagate.
-    Return values, except return False if a contradiction is detected."""
-    other_values = values[s].replace(d, '')
-    if all(eliminate(values, s, d2) for d2 in other_values):
-        return values
+def feasible(values):
+    if count_conflicts(values) != 0:
+        return count_conflict(values)
     else:
-        return False
+        for s in squares:
+            if len(values[s] == 2):
+                values[s] = values[s][0]
+            return True
 
 
-def eliminate(values, s, d):
-    """Eliminate d from values[s]; propagate when values or places <= 2.
-    Return values, except return False if a contradiction is detected."""
-    if d not in values[s]:
-        return values  # Already eliminated
-    values[s] = values[s].replace(d, '')
-    # (1) If a square s is reduced to one value d2, then eliminate d2 from the peers.
-    if len(values[s]) == 0:
-        return False  # Contradiction: removed last value
-    elif len(values[s]) == 1:
-        d2 = values[s]
-        if not all(eliminate(values, s2, d2) for s2 in peers[s]):
+def count_conflict(values):
+    conflicts = 0
+    for unit in unit_list:
+        seen = {}
+        for square in unit:
+            digit = values[square][0]
+            if digit in seen:
+                conflicts += 1
+            seen[digit] = True
+    return conflicts
+
+
+def assign(values, s, d):
+    for c in cube[s]:
+        if d in values[c]:
             return False
-    # (2) If a unit u is reduced to only one place for a value d, then put it there.
-    for u in units[s]:
-        d_places = [s for s in u if d in values[s]]
-        if len(d_places) == 0:
-            return False  # Contradiction: no place for this value
-        elif len(d_places) == 1:
-            # d can only be in one place in unit; assign it there
-            if not assign(values, d_places[0], d):
-                return False
-    return values
+    else:
+        values[s] = d
+        return values
+
+
+def try_assign(values, s, d):
+    for c in cube[s]:
+        if d in values[c]:
+            return False
+    else:
+        values[s] = d
+        return values
 
 
 # Display as 2-D grid #

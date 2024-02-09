@@ -30,6 +30,8 @@ units = dict((s, [u for u in unit_list if s in u])
              for s in squares)
 peers = dict((s, set(sum(units[s], [])) - {s})
              for s in squares)
+peer = dict((s, [sorted([u for u in unit if u != s]) for unit in units[s]])
+            for s in squares)
 
 
 # Unit Tests #
@@ -170,11 +172,12 @@ def randomsearch(values):
 def find_hidden_singles(values, s):
     """Find hidden singles in the peers of s."""
     for d in values[s]:
-        for p in peers[s]:
-            if d in values[p]:
-                break
-        else:  # No break, i.e., we found a hidden single
-            assign(values, s, d)
+        for p in peer[s]:
+            for square in p:
+                if d in values[square]:
+                    break
+                else:  # No break, i.e., we found a hidden single
+                    assign(values, s, d)
     return values
 
 
