@@ -176,9 +176,10 @@ def find_hidden_singles(values, s):
             for square in p:
                 if d in values[square]:
                     break
-                else:  # No break, i.e., we found a hidden single
-                    assign(values, s, d)
+            else:  # No break, i.e., we found a hidden single
+                assign(values, s, d)
     return values
+
 
 
 def find_naked_pairs(values, s):
