@@ -181,7 +181,6 @@ def find_hidden_singles(values, s):
     return values
 
 
-
 def find_naked_pairs(values, s):
     for p in peers[s]:
         if values[p] == values[s] and len(values[s]) == 2:
