@@ -120,6 +120,8 @@ def display(values):
 
 # Search #
 
+# def solve(grid: object) -> object: return randomsearch(parse_grid(grid))
+
 def solve(grid: object) -> object: return randomsearch(parse_grid(grid))
 
 
@@ -131,7 +133,7 @@ def search(values):
         return values  # Solved!
     # Chose the unfilled square s with the fewest possibilities
     _, s = min((len(values[s]), s) for s in squares if len(values[s]) > 1)
-    # values = find_hidden_singles(values, s)
+    values = find_hidden_singles(values, s)
     return some(search(assign(values.copy(), s, d))
                 for d in values[s])
 
@@ -159,9 +161,19 @@ def find_hidden_singles(values, s):
     return values
 
 
+def initialize_grid(grid):
+    new_grid = grid.copy()
+    for square in squares:
+        box_squares = [s for s in peers[square] if len(peers[s].intersection(peers[square])) > 5]
+        random.shuffle(box_squares)
+        for s in box_squares:
+            new_grid[s] = box_squares.index(s) + 1
+    return new_grid
+
+
 def hill_climbing(grid):
     # Parse the grid and initialize values
-    values = parse_grid(grid)
+    values = initialize_grid(parse_grid(grid))
     current_conflicts = count_conflicts(values)
 
     while True:
@@ -192,19 +204,19 @@ def hill_climbing(grid):
 def generate_neighbors(values):
     neighbors = []
     for square in squares:
-        # Randomly select two squares in the same 3x3 box
-        neighbors_squares = [s for s in peers[square] if
-                             len(values[s]) > 1 and len(peers[s].intersection(peers[square])) > 5]
-        if len(neighbors_squares) < 2:
+        # 在同一个3x3的方格中找出题目中未给出的方格
+        unfilled_squares = [s for s in peers[square] if len(values[s]) > 1 and len(peers[s].intersection(peers[square])) > 5]
+        # 如果这些方格少于2个，就跳过
+        if len(unfilled_squares) < 2:
             continue
-        square1, square2 = random.sample(neighbors_squares, 2)
-
-        # Swap values
+        # 随机选择两个方格
+        square1, square2 = random.sample(unfilled_squares, 2)
+        # 交换这两个方格的值
         new_values = values.copy()
         new_values[square1], new_values[square2] = new_values[square2], new_values[square1]
         neighbors.append(new_values)
-
     return neighbors
+
 
 
 def count_conflicts(values):
@@ -212,11 +224,13 @@ def count_conflicts(values):
     for unit in unit_list:
         seen = {}
         for square in unit:
-            for digit in values[square]:
-                if digit in seen:
-                    conflicts += 1
-                seen[digit] = True
+            digit = values[square]
+            if digit in seen:
+                conflicts += 1
+            seen[digit] = True
     return conflicts
+
+
 
 
 # Utilities #
@@ -300,7 +314,8 @@ if __name__ == '__main__':
     solve_all(from_file("1000sudoku.txt"), "95sudoku", None)
     # solve_all(from_file("easy50.txt", '========'), "easy", None)
     # solve_all(from_file("easy50.txt", '========'), "easy", None)
-    # solve_all(from_file("top95.txt"), "hard", None)
+    # noinspection PyTypeChecker
+    solve_all(from_file("top95.txt"), "hard", None)
     # solve_all(from_file("hardest.txt"), "hardest", None)
     # solve_all([random_puzzle() for _ in range(99)], "random", 100.0)
 
