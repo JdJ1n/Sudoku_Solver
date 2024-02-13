@@ -122,7 +122,7 @@ def display(values):
 
 # def solve(grid: object) -> object: return randomsearch(parse_grid(grid))
 
-def solve(grid: object) -> object: return randomsearch(parse_grid(grid))
+def solve(grid: object) -> object: return hill_climbing(grid)
 
 
 def search(values):
@@ -205,7 +205,8 @@ def generate_neighbors(values):
     neighbors = []
     for square in squares:
         # 在同一个3x3的方格中找出题目中未给出的方格
-        unfilled_squares = [s for s in peers[square] if len(values[s]) > 1 and len(peers[s].intersection(peers[square])) > 5]
+        unfilled_squares = [s for s in peers[square] if
+                            len(values[s]) > 1 and len(peers[s].intersection(peers[square])) > 5]
         # 如果这些方格少于2个，就跳过
         if len(unfilled_squares) < 2:
             continue
@@ -218,7 +219,6 @@ def generate_neighbors(values):
     return neighbors
 
 
-
 def count_conflicts(values):
     conflicts = 0
     for unit in unit_list:
@@ -229,8 +229,6 @@ def count_conflicts(values):
                 conflicts += 1
             seen[digit] = True
     return conflicts
-
-
 
 
 # Utilities #
@@ -311,9 +309,9 @@ hard1 = '.....6....59.....82....8....45........3........6..3.54...325..6........
 if __name__ == '__main__':
     test()
     # noinspection PyTypeChecker
-    solve_all(from_file("1000sudoku.txt"), "95sudoku", None)
-    # solve_all(from_file("easy50.txt", '========'), "easy", None)
-    # solve_all(from_file("easy50.txt", '========'), "easy", None)
+    solve_all(from_file("100sudoku.txt"), "easy", None)
+    # noinspection PyTypeChecker
+    solve_all(from_file("1000sudoku.txt"), "easy", None)
     # noinspection PyTypeChecker
     solve_all(from_file("top95.txt"), "hard", None)
     # solve_all(from_file("hardest.txt"), "hardest", None)

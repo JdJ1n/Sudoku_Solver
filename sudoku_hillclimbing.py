@@ -26,11 +26,12 @@ squares = cross(rows, cols)
 unit_list = ([cross(rows, c) for c in cols] +
              [cross(r, cols) for r in rows] +
              [cross(rs, cs) for rs in ('ABC', 'DEF', 'GHI') for cs in ('123', '456', '789')])
-cube = [cross(rs, cs) for rs in ('ABC', 'DEF', 'GHI') for cs in ('123', '456', '789')]
+cube = {s: [u for u in unit if u != s] for unit in unit_list for s in unit if len(unit) == 9}
 units = dict((s, [u for u in unit_list if s in u])
              for s in squares)
 peers = dict((s, set(sum(units[s], [])) - {s})
              for s in squares)
+riddle = []
 
 
 # Unit Tests #
@@ -52,36 +53,39 @@ def test():
 # Parse a Grid #
 
 def parse_grid(grid):
-    """Convert grid to a dict of possible values, {square: digits}, or
-    return False if a contradiction is detected."""
-    # To start, every square can be any digit; then assign values from the grid.
-    values = dict((s, digits) for s in squares)
-    for s, d in grid_values(grid).items():
-        if d in digits and not assign(values, s, d):
-            return False  # (Fail if we can't assign d to square s.)
+    values = grid_values(grid)
+    for s in squares:
+        if values[s] == '0':
+            filled_values = [values[i][0] for i in cube[s] if values[i] != '0']
+            possible_values = set(str(i) for i in range(1, 10)) - set(filled_values)
+            if possible_values:
+                values[s] = random.choice(list(possible_values))
     return values
 
 
 def grid_values(grid):
+    riddle.clear()
     """Convert grid into a dict of {square: char} with '0' or '.' for empties."""
     chars = [c for c in grid if c in digits or c in '0.']
     assert len(chars) == 81
-    return dict(zip(squares, chars))
+    make_grid = dict(zip(squares, chars))
+    riddle.extend(s for s in squares if make_grid[s] in '0.')
+    return make_grid
 
 
 # Constraint Propagation #
 
 def feasible(values):
     if count_conflicts(values) != 0:
-        return count_conflict(values)
+        return count_conflicts(values)
     else:
         for s in squares:
             if len(values[s] == 2):
                 values[s] = values[s][0]
-            return True
+            return 0
 
 
-def count_conflict(values):
+def count_conflicts(values):
     conflicts = 0
     for unit in unit_list:
         seen = {}
@@ -94,15 +98,6 @@ def count_conflict(values):
 
 
 def assign(values, s, d):
-    for c in cube[s]:
-        if d in values[c]:
-            return False
-    else:
-        values[s] = d
-        return values
-
-
-def try_assign(values, s, d):
     for c in cube[s]:
         if d in values[c]:
             return False
@@ -126,89 +121,46 @@ def display(values):
 
 # Search #
 
-def solve(grid: object) -> object: return search(parse_grid(grid))
+def solve(grid: object) -> object: return hill_climbing(parse_grid(grid))
 
 
-def search(values):
-    """Using depth-first search and propagation, try all possible values."""
-    if values is False:
-        return False  # Failed earlier
-    if all(len(values[s]) == 1 for s in squares):
-        return values  # Solved!
-    # Chose the unfilled square s with the fewest possibilities
-    _, s = min((len(values[s]), s) for s in squares if len(values[s]) > 1)
-    return some(search(assign(values.copy(), s, d))
-                for d in values[s])
-
-
-def initialize_grid(grid):
-    new_grid = grid.copy()
-    for square in squares:
-        box_squares = [s for s in peers[square] if len(peers[s].intersection(peers[square])) > 5]
-        random.shuffle(box_squares)
-        for s in box_squares:
-            new_grid[s] = box_squares.index(s) + 1
-    return new_grid
-
-
-def hill_climbing(grid):
+def hill_climbing(value):
     # Parse the grid and initialize values
-    values = initialize_grid(parse_grid(grid))
+    values = value
     current_conflicts = count_conflicts(values)
 
     while True:
         # Generate neighbors
         neighbors = generate_neighbors(values)
-
         # Evaluate neighbors
         best_neighbor = None
         best_conflicts = current_conflicts
-
         for neighbor in neighbors:
             neighbor_conflicts = count_conflicts(neighbor)
             if neighbor_conflicts < best_conflicts:
                 best_neighbor = neighbor
                 best_conflicts = neighbor_conflicts
-
         # If no better neighbor found, stop
         if best_neighbor is None or best_conflicts >= current_conflicts:
             break
-
         # Move to the best neighbor
         values = best_neighbor
         current_conflicts = best_conflicts
-
     return values
 
 
 def generate_neighbors(values):
     neighbors = []
-    for square in squares:
-        # 在同一个3x3的方格中找出题目中未给出的方格
-        unfilled_squares = [s for s in peers[square] if
-                            len(values[s]) > 1 and len(peers[s].intersection(peers[square])) > 5]
-        # 如果这些方格少于2个，就跳过
-        if len(unfilled_squares) < 2:
-            continue
-        # 随机选择两个方格
-        square1, square2 = random.sample(unfilled_squares, 2)
-        # 交换这两个方格的值
-        new_values = values.copy()
-        new_values[square1], new_values[square2] = new_values[square2], new_values[square1]
-        neighbors.append(new_values)
+    for s in squares:
+        if s in riddle:
+            unfilled_squares = [i for i in cube[s] if i in riddle]
+            if len(unfilled_squares) < 2:
+                continue
+            square1, square2 = random.sample(unfilled_squares, 2)
+            new_values = values.copy()
+            new_values[square1], new_values[square2] = new_values[square2], new_values[square1]
+            neighbors.append(new_values)
     return neighbors
-
-
-def count_conflicts(values):
-    conflicts = 0
-    for unit in unit_list:
-        seen = {}
-        for square in unit:
-            digit = values[square]
-            if digit in seen:
-                conflicts += 1
-            seen[digit] = True
-    return conflicts
 
 
 # Utilities #
@@ -289,9 +241,9 @@ hard1 = '.....6....59.....82....8....45........3........6..3.54...325..6........
 if __name__ == '__main__':
     test()
     # noinspection PyTypeChecker
-    solve_all(from_file("1000sudoku.txt"), "95sudoku", None)
-    # solve_all(from_file("easy50.txt", '========'), "easy", None)
-    # solve_all(from_file("easy50.txt", '========'), "easy", None)
+    solve_all(from_file("100sudoku.txt"), "easy", None)
+    # noinspection PyTypeChecker
+    solve_all(from_file("1000sudoku.txt"), "easy", None)
     # noinspection PyTypeChecker
     solve_all(from_file("top95.txt"), "hard", None)
     # solve_all(from_file("hardest.txt"), "hardest", None)

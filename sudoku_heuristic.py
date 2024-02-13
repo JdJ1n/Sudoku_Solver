@@ -132,7 +132,7 @@ def display(values):
 
 # Search #
 
-def solve(grid: object) -> object: return randomsearch(parse_grid(grid))
+def solve(grid: object) -> object: return search(parse_grid(grid))
 
 
 def search(values):
@@ -146,8 +146,8 @@ def search(values):
     # use Hidden Single to reduce candidate number
     values = find_hidden_singles(values, s)
     # use Naked Pairs to reduce candidate number
-    if len(values[s]) == 2:
-        values = find_naked_pairs(values, s)
+    # if len(values[s]) == 2:
+    #    values = find_naked_pairs(values, s)
     return some(search(assign(values.copy(), s, d))
                 for d in values[s])
 
