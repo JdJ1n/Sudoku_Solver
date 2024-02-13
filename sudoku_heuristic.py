@@ -163,8 +163,8 @@ def randomsearch(values):
     # use Hidden Single to reduce candidate number
     values = find_hidden_singles(values, s)
     # use Naked Pairs to reduce candidate number
-    if len(values[s]) == 2:
-        values = find_naked_pairs(values, s)
+    #if len(values[s]) == 2:
+    #    values = find_naked_pairs(values, s)
     return some(randomsearch(assign(values.copy(), s, d))
                 for d in values[s])
 
