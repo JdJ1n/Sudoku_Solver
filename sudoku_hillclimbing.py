@@ -1,5 +1,5 @@
 # Solve Every Sudoku Puzzle
-
+import itertools
 # See http://norvig.com/sudoku.html
 
 # Throughout this program we have:
@@ -75,16 +75,6 @@ def grid_values(grid):
 
 # Constraint Propagation #
 
-def feasible(values):
-    if count_conflicts(values) != 0:
-        return count_conflicts(values)
-    else:
-        for s in squares:
-            if len(values[s] == 2):
-                values[s] = values[s][0]
-            return 0
-
-
 def count_conflicts(values):
     conflicts = 0
     for unit in unit_list:
@@ -151,12 +141,14 @@ def hill_climbing(value):
 
 def generate_neighbors(values):
     neighbors = []
-    for s in squares:
-        if s in riddle:
-            unfilled_squares = [i for i in cube[s] if i in riddle]
-            if len(unfilled_squares) < 2:
-                continue
-            square1, square2 = random.sample(unfilled_squares, 2)
+    s_values = ['A1', 'A4', 'A7', 'D1', 'D4', 'D7', 'H1', 'H4', 'H7']
+    for s in s_values:
+        unfilled_squares = [sq for sq in cube[s] if sq in riddle]
+        if len(unfilled_squares) < 2:
+            continue
+        combinations = list(itertools.combinations(unfilled_squares, 2))
+        for c in combinations:
+            square1, square2 = c
             new_values = values.copy()
             new_values[square1], new_values[square2] = new_values[square2], new_values[square1]
             neighbors.append(new_values)

@@ -1,5 +1,5 @@
 # Solve Every Sudoku Puzzle
-
+import itertools
 # See http://norvig.com/sudoku.html
 
 # Throughout this program we have:
@@ -12,6 +12,7 @@
 #   values is a dict of possible values, e.g. {'A1':'12349', 'A2':'8', ...}
 import time
 import random
+import math
 
 
 def cross(front, back):
@@ -26,10 +27,12 @@ squares = cross(rows, cols)
 unit_list = ([cross(rows, c) for c in cols] +
              [cross(r, cols) for r in rows] +
              [cross(rs, cs) for rs in ('ABC', 'DEF', 'GHI') for cs in ('123', '456', '789')])
+cube = {s: [u for u in unit if u != s] for unit in unit_list for s in unit if len(unit) == 9}
 units = dict((s, [u for u in unit_list if s in u])
              for s in squares)
 peers = dict((s, set(sum(units[s], [])) - {s})
              for s in squares)
+riddle = []
 
 
 # Unit Tests #
@@ -51,58 +54,47 @@ def test():
 # Parse a Grid #
 
 def parse_grid(grid):
-    """Convert grid to a dict of possible values, {square: digits}, or
-    return False if a contradiction is detected."""
-    # To start, every square can be any digit; then assign values from the grid.
-    values = dict((s, digits) for s in squares)
-    for s, d in grid_values(grid).items():
-        if d in digits and not assign(values, s, d):
-            return False  # (Fail if we can't assign d to square s.)
+    values = grid_values(grid)
+    for s in squares:
+        if values[s] == '0':
+            filled_values = [values[i][0] for i in cube[s] if values[i] != '0']
+            possible_values = set(str(i) for i in range(1, 10)) - set(filled_values)
+            if possible_values:
+                values[s] = random.choice(list(possible_values))
     return values
 
 
 def grid_values(grid):
+    riddle.clear()
     """Convert grid into a dict of {square: char} with '0' or '.' for empties."""
     chars = [c for c in grid if c in digits or c in '0.']
     assert len(chars) == 81
-    return dict(zip(squares, chars))
+    make_grid = dict(zip(squares, chars))
+    riddle.extend(s for s in squares if make_grid[s] in '0.')
+    return make_grid
 
 
 # Constraint Propagation #
 
+def count_conflicts(values):
+    conflicts = 0
+    for unit in unit_list:
+        seen = {}
+        for square in unit:
+            digit = values[square][0]
+            if digit in seen:
+                conflicts += 1
+            seen[digit] = True
+    return conflicts
+
+
 def assign(values, s, d):
-    """Eliminate all the other values (except d) from values[s] and propagate.
-    Return values, except return False if a contradiction is detected."""
-    other_values = values[s].replace(d, '')
-    if all(eliminate(values, s, d2) for d2 in other_values):
-        return values
-    else:
-        return False
-
-
-def eliminate(values, s, d):
-    """Eliminate d from values[s]; propagate when values or places <= 2.
-    Return values, except return False if a contradiction is detected."""
-    if d not in values[s]:
-        return values  # Already eliminated
-    values[s] = values[s].replace(d, '')
-    # (1) If a square s is reduced to one value d2, then eliminate d2 from the peers.
-    if len(values[s]) == 0:
-        return False  # Contradiction: removed last value
-    elif len(values[s]) == 1:
-        d2 = values[s]
-        if not all(eliminate(values, s2, d2) for s2 in peers[s]):
+    for c in cube[s]:
+        if d in values[c]:
             return False
-    # (2) If a unit u is reduced to only one place for a value d, then put it there.
-    for u in units[s]:
-        d_places = [s for s in u if d in values[s]]
-        if len(d_places) == 0:
-            return False  # Contradiction: no place for this value
-        elif len(d_places) == 1:
-            # d can only be in one place in unit; assign it there
-            if not assign(values, d_places[0], d):
-                return False
-    return values
+    else:
+        values[s] = d
+        return values
 
 
 # Display as 2-D grid #
@@ -120,115 +112,45 @@ def display(values):
 
 # Search #
 
-# def solve(grid: object) -> object: return randomsearch(parse_grid(grid))
-
-def solve(grid: object) -> object: return hill_climbing(grid)
+def solve(grid: object) -> object: return simulated_annealing(parse_grid(grid))
 
 
-def search(values):
-    """Using depth-first search and propagation, try all possible values."""
-    if values is False:
-        return False  # Failed earlier
-    if all(len(values[s]) == 1 for s in squares):
-        return values  # Solved!
-    # Chose the unfilled square s with the fewest possibilities
-    _, s = min((len(values[s]), s) for s in squares if len(values[s]) > 1)
-    values = find_hidden_singles(values, s)
-    return some(search(assign(values.copy(), s, d))
-                for d in values[s])
+def simulated_annealing(values):
+    """Using simulated annealing, try all possible values."""
+    current = values
+    current_score = count_conflicts(current)
+    t = 3.0
+    t_min = 0.00001
+    alpha = 0.99
 
+    while t > t_min:
+        neighbors = generate_neighbors(current)
+        if not neighbors:
+            return current
+        next_neighbor = random.choice(neighbors)
+        next_score = count_conflicts(next_neighbor)
+        delta = next_score - current_score
+        if delta < 0 or random.uniform(0, 1) <= math.exp(-delta / t):
+            current, current_score = next_neighbor, next_score
+        t = t * alpha
 
-def randomsearch(values):
-    """Using depth-first search and propagation, try all possible values."""
-    if values is False:
-        return False  # Failed earlier
-    if all(len(values[s]) == 1 for s in squares):
-        return values  # Solved!
-    # Chose the unfilled square s randomly
-    s = random.choice([s for s in squares if len(values[s]) > 1])
-    values = find_hidden_singles(values, s)
-    return some(randomsearch(assign(values.copy(), s, d))
-                for d in values[s])
-
-
-def find_hidden_singles(values, s):
-    """Find hidden singles in the units of s."""
-    for d in values[s]:
-        for unit in units[s]:
-            d_places = [s for s in unit if d in values[s]]
-            if len(d_places) == 1:
-                assign(values, d_places[0], d)
-    return values
-
-
-def initialize_grid(grid):
-    new_grid = grid.copy()
-    for square in squares:
-        box_squares = [s for s in peers[square] if len(peers[s].intersection(peers[square])) > 5]
-        random.shuffle(box_squares)
-        for s in box_squares:
-            new_grid[s] = box_squares.index(s) + 1
-    return new_grid
-
-
-def hill_climbing(grid):
-    # Parse the grid and initialize values
-    values = initialize_grid(parse_grid(grid))
-    current_conflicts = count_conflicts(values)
-
-    while True:
-        # Generate neighbors
-        neighbors = generate_neighbors(values)
-
-        # Evaluate neighbors
-        best_neighbor = None
-        best_conflicts = current_conflicts
-
-        for neighbor in neighbors:
-            neighbor_conflicts = count_conflicts(neighbor)
-            if neighbor_conflicts < best_conflicts:
-                best_neighbor = neighbor
-                best_conflicts = neighbor_conflicts
-
-        # If no better neighbor found, stop
-        if best_neighbor is None or best_conflicts >= current_conflicts:
-            break
-
-        # Move to the best neighbor
-        values = best_neighbor
-        current_conflicts = best_conflicts
-
-    return values
+    return current
 
 
 def generate_neighbors(values):
     neighbors = []
-    for square in squares:
-        # 在同一个3x3的方格中找出题目中未给出的方格
-        unfilled_squares = [s for s in peers[square] if
-                            len(values[s]) > 1 and len(peers[s].intersection(peers[square])) > 5]
-        # 如果这些方格少于2个，就跳过
+    s_values = ['A1', 'A4', 'A7', 'D1', 'D4', 'D7', 'H1', 'H4', 'H7']
+    for s in s_values:
+        unfilled_squares = [sq for sq in cube[s] if sq in riddle]
         if len(unfilled_squares) < 2:
             continue
-        # 随机选择两个方格
-        square1, square2 = random.sample(unfilled_squares, 2)
-        # 交换这两个方格的值
-        new_values = values.copy()
-        new_values[square1], new_values[square2] = new_values[square2], new_values[square1]
-        neighbors.append(new_values)
+        combinations = list(itertools.combinations(unfilled_squares, 2))
+        for c in combinations:
+            square1, square2 = c
+            new_values = values.copy()
+            new_values[square1], new_values[square2] = new_values[square2], new_values[square1]
+            neighbors.append(new_values)
     return neighbors
-
-
-def count_conflicts(values):
-    conflicts = 0
-    for unit in unit_list:
-        seen = {}
-        for square in unit:
-            digit = values[square]
-            if digit in seen:
-                conflicts += 1
-            seen[digit] = True
-    return conflicts
 
 
 # Utilities #
