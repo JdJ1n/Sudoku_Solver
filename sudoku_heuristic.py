@@ -124,8 +124,8 @@ def display(values):
     width = 1 + max(len(values[s]) for s in squares)
     line = '+'.join(['-' * (width * 3)] * 3)
     for r in rows:
-        print(''.join(values[r + c].center(width) + ('|' if c in '36' else ''))
-              for c in cols)
+        print(''.join(values[r + c].center(width) + ('|' if c in '36' else '')
+                      for c in cols))
         if r in 'CF':
             print(line)
 
@@ -271,7 +271,7 @@ if __name__ == '__main__':
     # noinspection PyTypeChecker
     solve_all(from_file("1000sudoku.txt"), "easy", None)
     # noinspection PyTypeChecker
-    solve_all(from_file("top95.txt"), "hard", None)
+    solve_all(from_file("top95.txt"), "hard", 0.05)
     # solve_all(from_file("hardest.txt"), "hardest", None)
     # solve_all([random_puzzle() for _ in range(99)], "random", 100.0)
 

@@ -31,7 +31,7 @@ units = dict((s, [u for u in unit_list if s in u])
              for s in squares)
 peers = dict((s, set(sum(units[s], [])) - {s})
              for s in squares)
-riddle = []
+unfixed = []
 
 
 # Unit Tests #
@@ -64,26 +64,28 @@ def parse_grid(grid):
 
 
 def grid_values(grid):
-    riddle.clear()
+    unfixed.clear()
     """Convert grid into a dict of {square: char} with '0' or '.' for empties."""
     chars = [c for c in grid if c in digits or c in '0.']
     assert len(chars) == 81
     make_grid = dict(zip(squares, chars))
-    riddle.extend(s for s in squares if make_grid[s] in '0.')
+    unfixed.extend(s for s in squares if make_grid[s] in '0.')
     return make_grid
 
 
 # Constraint Propagation #
 
 def count_conflicts(values):
+    """Calculate the number of conflicts in unfixed cells."""
     conflicts = 0
     for unit in unit_list:
         seen = {}
         for square in unit:
-            digit = values[square][0]
-            if digit in seen:
-                conflicts += 1
-            seen[digit] = True
+            if square in unfixed:
+                digit = values[square][0]
+                if digit in seen:
+                    conflicts += 1
+                seen[digit] = True
     return conflicts
 
 
@@ -103,8 +105,8 @@ def display(values):
     width = 1 + max(len(values[s]) for s in squares)
     line = '+'.join(['-' * (width * 3)] * 3)
     for r in rows:
-        print(''.join(values[r + c].center(width) + ('|' if c in '36' else ''))
-              for c in cols)
+        print(''.join(values[r + c].center(width) + ('|' if c in '36' else '')
+                      for c in cols))
         if r in 'CF':
             print(line)
 
@@ -125,6 +127,8 @@ def hill_climbing(value):
         # Evaluate neighbors
         best_neighbor = None
         best_conflicts = current_conflicts
+        if best_conflicts == 0:
+            return values
         for neighbor in neighbors:
             neighbor_conflicts = count_conflicts(neighbor)
             if neighbor_conflicts < best_conflicts:
@@ -143,7 +147,7 @@ def generate_neighbors(values):
     neighbors = []
     s_values = ['A1', 'A4', 'A7', 'D1', 'D4', 'D7', 'H1', 'H4', 'H7']
     for s in s_values:
-        unfilled_squares = [sq for sq in cube[s] if sq in riddle]
+        unfilled_squares = [sq for sq in cube[s] if sq in unfixed]
         if len(unfilled_squares) < 2:
             continue
         combinations = list(itertools.combinations(unfilled_squares, 2))
@@ -233,9 +237,9 @@ hard1 = '.....6....59.....82....8....45........3........6..3.54...325..6........
 if __name__ == '__main__':
     test()
     # noinspection PyTypeChecker
-    solve_all(from_file("100sudoku.txt"), "easy", None)
+    solve_all(from_file("100sudoku.txt"), "easy", 0.05)
     # noinspection PyTypeChecker
-    solve_all(from_file("1000sudoku.txt"), "easy", None)
+    # solve_all(from_file("1000sudoku.txt"), "easy", None)
     # noinspection PyTypeChecker
     solve_all(from_file("top95.txt"), "hard", None)
     # solve_all(from_file("hardest.txt"), "hardest", None)
