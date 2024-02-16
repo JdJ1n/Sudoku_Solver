@@ -236,7 +236,7 @@ if __name__ == '__main__':
     # noinspection PyTypeChecker
     solve_all(from_file("100sudoku.txt"), "easy", 0.05)
     # noinspection PyTypeChecker
-    solve_all(from_file("1000sudoku.txt"), "easy", None)
+    # solve_all(from_file("1000sudoku.txt"), "easy", None)
     # noinspection PyTypeChecker
     solve_all(from_file("top95.txt"), "hard", None)
     # solve_all(from_file("hardest.txt"), "hardest", None)
