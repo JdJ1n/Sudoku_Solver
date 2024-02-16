@@ -55,8 +55,8 @@ def test():
 def parse_grid(grid):
     values = grid_values(grid)
     for s in squares:
-        if values[s] == '0':
-            filled_values = [values[i][0] for i in cube[s] if values[i] != '0']
+        if values[s] in '0.':
+            filled_values = [values[i][0] for i in cube[s] if values[i] not in '0.']
             possible_values = set(str(i) for i in range(1, 10)) - set(filled_values)
             if possible_values:
                 values[s] = random.choice(list(possible_values))
@@ -75,27 +75,29 @@ def grid_values(grid):
 
 # Constraint Propagation #
 
-def count_conflicts(values):
-    """Calculate the number of conflicts in unfixed cells."""
-    conflicts = 0
-    for unit in unit_list:
-        seen = {}
-        for square in unit:
-            if square in unfixed:
-                digit = values[square][0]
-                if digit in seen:
-                    conflicts += 1
-                seen[digit] = True
-    return conflicts
-
-
-def assign(values, s, d):
-    for c in cube[s]:
-        if d in values[c]:
-            return False
-    else:
-        values[s] = d
-        return values
+def get_conflicts(values):
+    """Calculate the number of conflicts in rows and cols only count non-fixed cells."""
+    conflicts = []
+    # Check rows
+    for i in 'ABCDEFGHI':
+        row = [values[i + j] for j in '123456789']
+        for digit in '123456789':
+            count = row.count(digit)
+            if count > 1:
+                for k in '123456789':
+                    if values[i + k] == digit:
+                        conflicts.append(i + k)
+    # Check columns
+    for j in '123456789':
+        col = [values[i + j] for i in 'ABCDEFGHI']
+        for digit in '123456789':
+            count = col.count(digit)
+            if count > 1:
+                for k in 'ABCDEFGHI':
+                    if values[k + j] == digit:
+                        conflicts.append(k + j)
+    final_conflicts = list(set(conflicts) & set(unfixed))
+    return final_conflicts
 
 
 # Display as 2-D grid #
@@ -119,18 +121,18 @@ def solve(grid: object) -> object: return hill_climbing(parse_grid(grid))
 def hill_climbing(value):
     # Parse the grid and initialize values
     values = value
-    current_conflicts = count_conflicts(values)
+    current_conflicts = len(get_conflicts(values))
 
     while True:
         # Generate neighbors
-        neighbors = generate_neighbors(values)
+        neighbors = generate_all_neighbors(values)
         # Evaluate neighbors
         best_neighbor = None
         best_conflicts = current_conflicts
         if best_conflicts == 0:
             return values
         for neighbor in neighbors:
-            neighbor_conflicts = count_conflicts(neighbor)
+            neighbor_conflicts = len(get_conflicts(neighbor))
             if neighbor_conflicts < best_conflicts:
                 best_neighbor = neighbor
                 best_conflicts = neighbor_conflicts
@@ -143,7 +145,7 @@ def hill_climbing(value):
     return values
 
 
-def generate_neighbors(values):
+def generate_all_neighbors(values):
     neighbors = []
     s_values = ['A1', 'A4', 'A7', 'D1', 'D4', 'D7', 'H1', 'H4', 'H7']
     for s in s_values:
@@ -161,24 +163,10 @@ def generate_neighbors(values):
 
 # Utilities #
 
-def some(seq):
-    """Return some element of seq that is true."""
-    for e in seq:
-        if e:
-            return e
-    return False
-
 
 def from_file(filename, sep='\n'):
     """Parse a file into a list of strings, separated by sep."""
     return open(filename).read().strip().split(sep)
-
-
-def shuffled(seq):
-    """Return a randomly shuffled copy of the input sequence."""
-    seq = list(seq)
-    random.shuffle(seq)
-    return seq
 
 
 # System test #
@@ -216,30 +204,12 @@ def solved(values):
     return values is not False and all(unit_solved(unit) for unit in unit_list)
 
 
-def random_puzzle(n=17):
-    """Make a random puzzle with N or more assignments. Restart on contradictions.
-    Note the resulting puzzle is not guaranteed to be solvable, but empirically
-    about 99.8% of them are solvable. Some have multiple solutions."""
-    values = dict((s, digits) for s in squares)
-    for s in shuffled(squares):
-        if not assign(values, s, random.choice(values[s])):
-            break
-        ds = [values[s] for s in squares if len(values[s]) == 1]
-        if len(ds) >= n and len(set(ds)) >= 8:
-            return ''.join(values[s] if len(values[s]) == 1 else '.' for s in squares)
-    return random_puzzle(n)  # Give up and make a new puzzle
-
-
-grid1 = '003020600900305001001806400008102900700000008006708200002609500800203009005010300'
-grid2 = '4.....8.5.3..........7......2.....6.....8.4......1.......6.3.7.5..2.....1.4......'
-hard1 = '.....6....59.....82....8....45........3........6..3.54...325..6..................'
-
 if __name__ == '__main__':
     test()
     # noinspection PyTypeChecker
     solve_all(from_file("100sudoku.txt"), "easy", 0.05)
     # noinspection PyTypeChecker
-    # solve_all(from_file("1000sudoku.txt"), "easy", None)
+    solve_all(from_file("simple.txt"), "easy", None)
     # noinspection PyTypeChecker
     solve_all(from_file("top95.txt"), "hard", None)
     # solve_all(from_file("hardest.txt"), "hardest", None)

@@ -1,5 +1,4 @@
 # Solve Every Sudoku Puzzle
-import itertools
 # See http://norvig.com/sudoku.html
 
 # Throughout this program we have:
@@ -33,6 +32,7 @@ units = dict((s, [u for u in unit_list if s in u])
 peers = dict((s, set(sum(units[s], [])) - {s})
              for s in squares)
 unfixed = []
+values_tried = []
 
 
 # Unit Tests #
@@ -61,12 +61,14 @@ def parse_grid(grid):
             possible_values = set(str(i) for i in range(1, 10)) - set(filled_values)
             if possible_values:
                 values[s] = random.choice(list(possible_values))
+    values_tried.append(values)
     return values
 
 
 def grid_values(grid):
     """Convert grid into a dict of {square: char} with '0' or '.' for empties."""
     unfixed.clear()
+    values_tried.clear()
     chars = [c for c in grid if c in digits or c in '0.']
     assert len(chars) == 81
     make_grid = dict(zip(squares, chars))
@@ -76,35 +78,29 @@ def grid_values(grid):
 
 # Constraint Propagation #
 
-def count_conflicts(values, non_fixed):
+def get_conflicts(values):
     """Calculate the number of conflicts in rows and cols only count non-fixed cells."""
-    conflicts = 0
+    conflicts = []
     # Check rows
     for i in 'ABCDEFGHI':
         row = [values[i + j] for j in '123456789']
         for digit in '123456789':
             count = row.count(digit)
             if count > 1:
-                unfixed_count = sum(1 for j in '123456789' if (i + j) in non_fixed and values[i + j] == digit)
-                conflicts += 3 if unfixed_count == 3 else 2 if unfixed_count == 2 else 1
+                for k in '123456789':
+                    if values[i + k] == digit:
+                        conflicts.append(i + k)
     # Check columns
     for j in '123456789':
         col = [values[i + j] for i in 'ABCDEFGHI']
         for digit in '123456789':
             count = col.count(digit)
             if count > 1:
-                unfixed_count = sum(1 for i in 'ABCDEFGHI' if (i + j) in non_fixed and values[i + j] == digit)
-                conflicts += 3 if unfixed_count == 3 else 2 if unfixed_count == 2 else 1
-    return conflicts
-
-
-def assign(values, s, d):
-    for c in cube[s]:
-        if d in values[c]:
-            return False
-    else:
-        values[s] = d
-        return values
+                for k in 'ABCDEFGHI':
+                    if values[k + j] == digit:
+                        conflicts.append(k + j)
+    final_conflicts = list(set(conflicts) & set(unfixed))
+    return final_conflicts
 
 
 # Display as 2-D grid #
@@ -125,79 +121,78 @@ def display(values):
 def solve(grid: object) -> object: return simulated_annealing(parse_grid(grid))
 
 
-def simulated_annealing(values):
+def simulated_annealing(values, max_iteration=50000):
     """Using simulated annealing, try all possible values."""
-    current = values
-    current_score = count_conflicts(current, unfixed)
-    t = 3.0
-    t_min = 1e-26
+    current = values.copy()
+    current_conflicts = get_conflicts(current.copy())
+    current_score = len(current_conflicts)
+    t_initial = 3.0
+    t = t_initial
+    t_min = 1e-126
     alpha = 0.99
+    iteration = 0
+    restart = 0
 
-    while t > t_min:
-        neighbors = generate_neighbor(current, unfixed)
-        if (not neighbors) or (current_score == 0):
+    while t > t_min and iteration <= max_iteration:
+        iteration += 1
+        neighbor = generate_neighbor(current, unfixed)
+        if (not neighbor) or (current_score == 0):
             return current.copy()
-        next_neighbor = random.choice(neighbors)
-        next_score = count_conflicts(next_neighbor, unfixed)
+        values_tried.append(current)
+        next_neighbor = neighbor
+        next_conflicts = get_conflicts(next_neighbor)
+        next_score = len(next_conflicts)
         delta = next_score - current_score
         if delta < 0 or random.uniform(0, 1) < math.exp(-delta / t):
-            current, current_score = next_neighbor, next_score
+            current, current_conflicts, current_score = next_neighbor, next_conflicts, next_score
+            restart = 0
+        else:
+            restart += 1
         t = t * alpha
-
+        if restart >= 1000:
+            restart = 0
+            values = reheat(values, unfixed)
+            t = t_initial
     return current.copy()
 
 
-def generate_neighbors(values, non_fixed):
-    neighbors = []
-    s_values = ['A1', 'A4', 'A7', 'D1', 'D4', 'D7', 'H1', 'H4', 'H7']
-    for s in s_values:
-        unfilled_squares = [sq for sq in cube[s] if sq in non_fixed]
-        if len(unfilled_squares) < 2:
-            continue
-        combinations = list(itertools.combinations(unfilled_squares, 2))
-        for c in combinations:
-            square1, square2 = c
-            new_values = values.copy()
-            new_values[square1], new_values[square2] = new_values[square2], new_values[square1]
-            neighbors.append(new_values)
-    return neighbors
-
-
 def generate_neighbor(values, non_fixed):
-    neighbors = []
-    s_values = ['A1', 'A4', 'A7', 'D1', 'D4', 'D7', 'H1', 'H4', 'H7']
-    for s in s_values:
-        unfilled_squares = [sq for sq in cube[s] if sq in non_fixed]
-        if len(unfilled_squares) < 2:
-            continue
-        combination = random.choice(list(itertools.combinations(unfilled_squares, 2)))
-        square1, square2 = combination
-        new_values = values.copy()
-        new_values[square1], new_values[square2] = new_values[square2], new_values[square1]
-        neighbors.append(new_values)
-    return neighbors
+    max_attempts = 500
+    attempts = 0
+    i = random.choice(squares)
+    while i not in non_fixed and attempts < max_attempts:
+        i = random.choice(squares)
+        attempts += 1
+    if attempts == max_attempts:
+        return values
+    j = random.choice(cube[i])
+    while i not in non_fixed or i == j and attempts < max_attempts:
+        j = random.choice(cube[i])
+        attempts += 1
+    if attempts == max_attempts:
+        return values
+    neighbor = values.copy()
+    neighbor[i], neighbor[j] = neighbor[j], neighbor[i]
+    return neighbor
+
+
+def reheat(values, non_fixed):
+    restart = values.copy()
+    for s in squares:
+        if s in unfixed:
+            filled_values = [values[i][0] for i in cube[s] if i not in non_fixed]
+            possible_values = set(str(i) for i in range(1, 10)) - set(filled_values)
+            if possible_values:
+                restart[s] = random.choice(list(possible_values))
+    return restart
 
 
 # Utilities #
-
-def some(seq):
-    """Return some element of seq that is true."""
-    for e in seq:
-        if e:
-            return e
-    return False
 
 
 def from_file(filename, sep='\n'):
     """Parse a file into a list of strings, separated by sep."""
     return open(filename).read().strip().split(sep)
-
-
-def shuffled(seq):
-    """Return a randomly shuffled copy of the input sequence."""
-    seq = list(seq)
-    random.shuffle(seq)
-    return seq
 
 
 # System test #
@@ -235,33 +230,15 @@ def solved(values):
     return values is not False and all(unit_solved(unit) for unit in unit_list)
 
 
-def random_puzzle(n=17):
-    """Make a random puzzle with N or more assignments. Restart on contradictions.
-    Note the resulting puzzle is not guaranteed to be solvable, but empirically
-    about 99.8% of them are solvable. Some have multiple solutions."""
-    values = dict((s, digits) for s in squares)
-    for s in shuffled(squares):
-        if not assign(values, s, random.choice(values[s])):
-            break
-        ds = [values[s] for s in squares if len(values[s]) == 1]
-        if len(ds) >= n and len(set(ds)) >= 8:
-            return ''.join(values[s] if len(values[s]) == 1 else '.' for s in squares)
-    return random_puzzle(n)  # Give up and make a new puzzle
-
-
-grid1 = '003020600900305001001806400008102900700000008006708200002609500800203009005010300'
-grid2 = '4.....8.5.3..........7......2.....6.....8.4......1.......6.3.7.5..2.....1.4......'
-hard1 = '.....6....59.....82....8....45........3........6..3.54...325..6..................'
-
 if __name__ == '__main__':
     test()
     solve_all(from_file("simple.txt"), "easy", 0.05)
     # noinspection PyTypeChecker
     solve_all(from_file("100sudoku.txt"), "easy", 0.05)
     # noinspection PyTypeChecker
-    # solve_all(from_file("1000sudoku.txt"), "easy", None)
+    solve_all(from_file("1000sudoku.txt"), "easy", None)
     # noinspection PyTypeChecker
-    # solve_all(from_file("top95.txt"), "hard", None)
+    solve_all(from_file("top95.txt"), "hard", None)
     # solve_all(from_file("hardest.txt"), "hardest", None)
     # solve_all([random_puzzle() for _ in range(99)], "random", 100.0)
 
