@@ -1,3 +1,4 @@
+# Jiadong Jin(20150692) Yuxiang Lin(20172116)
 # Solve Every Sudoku Puzzle
 import itertools
 # See http://norvig.com/sudoku.html

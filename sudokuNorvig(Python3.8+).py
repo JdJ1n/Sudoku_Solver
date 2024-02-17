@@ -1,5 +1,5 @@
+# Jiadong Jin(20150692) Yuxiang Lin(20172116)
 # Solve Every Sudoku Puzzle
-
 # See http://norvig.com/sudoku.html
 
 # Throughout this program we have:
