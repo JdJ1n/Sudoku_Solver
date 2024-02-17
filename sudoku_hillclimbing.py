@@ -53,23 +53,35 @@ def test():
 # Parse a Grid #
 
 def parse_grid(grid):
+    # Convert the grid into a dictionary of values
     values = grid_values(grid)
+    # Iterate through each square in the grid
     for s in squares:
+        # If the value of the square is '0' or '.', it needs to be filled
         if values[s] in '0.':
+            # Get the values of the filled squares in the cube
             filled_values = [values[i][0] for i in cube[s] if values[i] not in '0.']
+            # Get the possible values that can be filled in the square
             possible_values = set(str(i) for i in range(1, 10)) - set(filled_values)
+            # If there are possible values, fill the square with a random choice
             if possible_values:
                 values[s] = random.choice(list(possible_values))
+    # Return the filled grid
     return values
 
 
 def grid_values(grid):
+    # Clear the list of unfixed squares
     unfixed.clear()
-    """Convert grid into a dict of {square: char} with '0' or '.' for empties."""
+    # Convert the grid into a dictionary of {square: char} with '0' or '.' for empties
     chars = [c for c in grid if c in digits or c in '0.']
+    # Assert that the grid has 81 characters (9x9 grid)
     assert len(chars) == 81
+    # Create a dictionary mapping each square to its character
     make_grid = dict(zip(squares, chars))
+    # Extend the list of unfixed squares with the squares that are '0' or '.'
     unfixed.extend(s for s in squares if make_grid[s] in '0.')
+    # Return the grid
     return make_grid
 
 
@@ -121,22 +133,27 @@ def solve(grid: object) -> object: return hill_climbing(parse_grid(grid))
 def hill_climbing(value):
     # Parse the grid and initialize values
     values = value
+    # Get the current number of conflicts
     current_conflicts = len(get_conflicts(values))
 
     while True:
-        # Generate neighbors
+        # Generate all neighbors
         neighbors = generate_all_neighbors(values)
         # Evaluate neighbors
         best_neighbor = None
         best_conflicts = current_conflicts
+        # If the best conflict is 0, return the values
         if best_conflicts == 0:
             return values
+        # Iterate through all neighbors
         for neighbor in neighbors:
+            # Get the number of conflicts of the neighbor
             neighbor_conflicts = len(get_conflicts(neighbor))
+            # If the neighbor has fewer conflicts, update the best neighbor and the best conflicts
             if neighbor_conflicts < best_conflicts:
                 best_neighbor = neighbor
                 best_conflicts = neighbor_conflicts
-        # If no better neighbor found, stop
+        # If no better neighbor is found, or the best conflicts are not less than the current conflicts, break the loop
         if best_neighbor is None or best_conflicts >= current_conflicts:
             break
         # Move to the best neighbor
@@ -147,16 +164,22 @@ def hill_climbing(value):
 
 def generate_all_neighbors(values):
     neighbors = []
+    # get a represent for every 3*3 cube
     s_values = ['A1', 'A4', 'A7', 'D1', 'D4', 'D7', 'H1', 'H4', 'H7']
     for s in s_values:
+        # Get the unfilled squares
         unfilled_squares = [sq for sq in cube[s] if sq in unfixed]
+        # If there are less than 2 unfilled squares, continue to the next square
         if len(unfilled_squares) < 2:
             continue
+        # Generate all combinations of 2 unfilled squares
         combinations = list(itertools.combinations(unfilled_squares, 2))
         for c in combinations:
+            # Swap the values of the two squares in each combination
             square1, square2 = c
             new_values = values.copy()
             new_values[square1], new_values[square2] = new_values[square2], new_values[square1]
+            # Add the new values to the list of neighbors
             neighbors.append(new_values)
     return neighbors
 

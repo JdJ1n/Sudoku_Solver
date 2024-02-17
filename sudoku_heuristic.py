@@ -136,7 +136,7 @@ def solve(grid: object) -> object: return search(parse_grid(grid))
 
 
 def search(values):
-    """Using depth-first search and propagation, try all possible values."""
+    """Using depth-first search by Norvig and propagation, try all possible values."""
     if values is False:
         return False  # Failed earlier
     if all(len(values[s]) == 1 for s in squares):
@@ -153,7 +153,7 @@ def search(values):
 
 
 def randomsearch(values):
-    """Using depth-first search and propagation, try all possible values."""
+    """Using depth-first search but chose candidate randomly and propagation, try all possible values."""
     if values is False:
         return False  # Failed earlier
     if all(len(values[s]) == 1 for s in squares):
@@ -182,6 +182,7 @@ def find_hidden_singles(values, s):
 
 
 def find_naked_pairs(values, s):
+    """Find naked pairs in the peers of s."""
     for p in peers[s]:
         if values[p] == values[s] and len(values[s]) == 2:
             assign_2(values, s, values[s][0], values[s][1])

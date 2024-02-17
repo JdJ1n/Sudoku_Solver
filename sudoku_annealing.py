@@ -54,25 +54,35 @@ def test():
 # Parse a Grid #
 
 def parse_grid(grid):
+    # Convert the grid into a dictionary of values
     values = grid_values(grid)
+    # Iterate through each square in the grid
     for s in squares:
+        # If the value of the square is '0' or '.', it needs to be filled
         if values[s] in '0.':
+            # Get the values of the filled squares in the cube
             filled_values = [values[i][0] for i in cube[s] if values[i] not in '0.']
+            # Get the possible values that can be filled in the square
             possible_values = set(str(i) for i in range(1, 10)) - set(filled_values)
+            # If there are possible values, fill the square with a random choice
             if possible_values:
                 values[s] = random.choice(list(possible_values))
-    values_tried.append(values)
+    # Return the filled grid
     return values
 
 
 def grid_values(grid):
-    """Convert grid into a dict of {square: char} with '0' or '.' for empties."""
+    # Clear the list of unfixed squares
     unfixed.clear()
-    values_tried.clear()
+    # Convert the grid into a dictionary of {square: char} with '0' or '.' for empties
     chars = [c for c in grid if c in digits or c in '0.']
+    # Assert that the grid has 81 characters (9x9 grid)
     assert len(chars) == 81
+    # Create a dictionary mapping each square to its character
     make_grid = dict(zip(squares, chars))
+    # Extend the list of unfixed squares with the squares that are '0' or '.'
     unfixed.extend(s for s in squares if make_grid[s] in '0.')
+    # Return the grid
     return make_grid
 
 
@@ -122,66 +132,91 @@ def solve(grid: object) -> object: return simulated_annealing(parse_grid(grid))
 
 
 def simulated_annealing(values, max_iteration=50000):
-    """Using simulated annealing, try all possible values."""
+    """Using simulated annealing."""
     current = values.copy()
     current_conflicts = get_conflicts(current.copy())
+    # Score the current state based on the number of conflicts
     current_score = len(current_conflicts)
+    # Initialize temperature parameters for simulated annealing
     t_initial = 3.0
     t = t_initial
     t_min = 1e-126
     alpha = 0.99
+    # Initialize iteration and restart counters
     iteration = 0
     restart = 0
 
     while t > t_min and iteration <= max_iteration:
         iteration += 1
+        # Generate a neighbor state
         neighbor = generate_neighbor(current, unfixed)
         if (not neighbor) or (current_score == 0):
             return current.copy()
-        values_tried.append(current)
+        # Evaluate the neighbor state
         next_neighbor = neighbor
         next_conflicts = get_conflicts(next_neighbor)
         next_score = len(next_conflicts)
+        # Calculate the difference in score between the neighbor and the current state
         delta = next_score - current_score
+        # If the neighbor state is better or the probability condition is met, move to the neighbor state
         if delta < 0 or random.uniform(0, 1) < math.exp(-delta / t):
             current, current_conflicts, current_score = next_neighbor, next_conflicts, next_score
             restart = 0
         else:
+            # If not, increment the restart counter
             restart += 1
+        # Decrease the temperature
         t = t * alpha
+        # If the restart counter reaches 1000, reheat the system
         if restart >= 1000:
             restart = 0
             values = reheat(values, unfixed)
             t = t_initial
+    # Return the final state
     return current.copy()
 
 
 def generate_neighbor(values, non_fixed):
+    # Initialize the maximum number of attempts to generate a neighbor
     max_attempts = 500
     attempts = 0
+    # Randomly select a square
     i = random.choice(squares)
+    # If the square is not in the list of non-fixed squares, select another square
     while i not in non_fixed and attempts < max_attempts:
         i = random.choice(squares)
         attempts += 1
+    # If the maximum number of attempts is reached, return the original values
     if attempts == max_attempts:
         return values
+    # Randomly select another square in the same cube
     j = random.choice(cube[i])
+    # If the second square is not in the list of non-fixed squares or
+    # is the same as the first square, select another square
     while i not in non_fixed or i == j and attempts < max_attempts:
         j = random.choice(cube[i])
         attempts += 1
     if attempts == max_attempts:
         return values
+    # Swap the values of the two squares to generate a neighbor
     neighbor = values.copy()
     neighbor[i], neighbor[j] = neighbor[j], neighbor[i]
     return neighbor
 
 
 def reheat(values, non_fixed):
+    """A random-restart mechanism to the algorithm: If no improvement
+    in cost is made for a fixed number of Markov chains (there is set to 1000),
+    then t is reset to its initial setting"""
     restart = values.copy()
     for s in squares:
+        # If the square is in the list of non-fixed squares
         if s in unfixed:
+            # Get the filled values in the same cube
             filled_values = [values[i][0] for i in cube[s] if i not in non_fixed]
+            # Get the possible values that can be filled in the square
             possible_values = set(str(i) for i in range(1, 10)) - set(filled_values)
+            # If there are possible values, fill the square with a random choice
             if possible_values:
                 restart[s] = random.choice(list(possible_values))
     return restart
